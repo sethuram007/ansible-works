@@ -1,0 +1,58 @@
+- hosts: db_web_servers
+  become: true
+  tasks:
+    - name: try ping
+      ansible.builtin.ping:
+    - name: Install required dependencies
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: installed
+      loop:
+        - python
+        - python-setuptools
+        - python-dev
+        - build-essentials
+        - python-pip
+    - name: Install a data base
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: installed
+      loop:
+        - mysql-server
+        - mysql-client
+    - name: start mysql service
+      ansible.builtin.service:
+        name: mysql
+        state: started
+        enabled: true
+    - name: create an application database
+      community.mysql.mysql_db:
+        name: employee_db
+        state: present
+    - name: create database user
+      community.mysql.mysql_user:
+        name: db_user
+        password: secret
+        state: present
+        priv: '*.*:ALL'
+        host: '%'
+    - name: Install python Flask dependencies
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - Flask
+        - Flask-mysql
+    - name: copy sourcecode
+      ansible.builtin.copy:
+        src: app.py
+        dest: /opt/app.py
+        owner: root
+        group: root
+        mode: 0744
+    - name: start web-server
+      ansible.builtin.command:
+        cmd:
+          - FLASK_APP=/opt/app.py
+          - flash run --host=0.0.0.0 &
+      changed_when: false
