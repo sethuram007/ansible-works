@@ -1,0 +1,68 @@
+---
+- hosts: webservers
+  become: true
+  connection: ssh
+  tasks:
+    - name: verify if the httpd service is running
+      ansible.builtin.shell:
+        cmd: if pd -eaf | egrep 'httpd' | grep -v grep > /dev/null; then exho 'process running'; else echo 'process not running'
+        # this will verify if httpd is running or no
+      changed_when: false
+      register: application_process_check
+    - name: message-out
+      ansible.builtin.debug:
+        msg: " {{ application_process_check.stdout }} "
+      changed_when: false
+    - name: decision point whether to proceed or not
+      ansible.builtin.fail:
+        msg: " {{ inventory_hostname }} is running application, please stop it "
+      when: application_process_check.stdout == "process running"
+      changed_when: false
+    - name: copy the kernel repo patch file
+      ansible.builtin.copy:
+        src: /home/usr/patching/kernel.repo
+        dest: /etc/yum.repos.d/
+        owner: root
+        group: root
+        mode: u+rw,g-wx,o-rwx
+    - name: current kernel version
+      ansible.builtin.command: uname -r
+      register: curr_kernel_version
+      changed_when: false
+    - name: initializing patching
+      ansible.builtin.yum:
+        name: kernel
+        state: 1.2.3
+      register: yum_update
+    - name: stdout the debug message
+      ansible.builtin.debug:
+        msg: "kernel has been updated"
+      changed_when: false
+      when: yum_update.rc==0
+    - name: check if reboot is required or not
+      ansible.builtin.shell: kernel_new=$(rpm -qa --last kernel | head -1 | awk'{print $1}'|sed 's/kernel-//g/');
+        kernel_now=$(uname -r);if[[kernel_new !=kernel_now]];then echo"reboot is required";
+        else echo"reboot is not required";fi
+      ignore_errors: true
+      changed_when: false
+      register: reboot_check
+    - name: debug after reboot
+      ansible.builtin.debug:
+        msg: " {{ reboot_check.stdout }} "
+    - name: rebooting after patching
+      ansible.builtin.command: "shutdown -r now"
+      async: 1 # this will asynchronously move to next task and gives time for it ot finish(here it is 1 minute)
+      poll: 0 # this is the time after which ansible checks if the process is finished. here 0 means "fire and forget"
+      changed_when: false
+    - name: wait for system to come up
+      ansible.builtin.pause:
+        minutes: 1
+      changed_when: false
+    - name: new kernel version
+      ansible.builtin.command: uname -r
+      changed_when: false
+      register: latest_kernel_version
+    - name: debugging at last stage
+      ansible.builtin.debug:
+        msg: " new kernel version is {{ latest_kernel_version.stdout }} and the earlier version was {{ curr_kernel_version.stdout }} "
+      changed_when: false
