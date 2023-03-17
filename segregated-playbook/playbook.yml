@@ -1,0 +1,10 @@
+- name: Configuring web cum database
+  hosts: db_web_servers
+  become: true
+  tasks:
+    - name: Include task list in play
+      ansible.builtin.include_tasks:
+        file:
+          - tasks/deploy_web.yml
+          - tasks/deploy_db.yml
+          - tasks/install_dependencies.yml
