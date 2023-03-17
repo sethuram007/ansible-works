@@ -1,0 +1,22 @@
+- name: Deploy web application asynchronously
+  hosts: db_web_servers
+  tasks:
+    - name: start app
+      ansible.builtin.command: python3 /opt/monitor.py
+      async: 360 # leaves this task to run for 360 seconds
+      poll: 0 # fire and forget
+      register: webapp_result
+      changed_when: false
+    - name: start db
+      ansible.builtin.command: python3 /opt/database.py
+      async: 360 # leaves this task to run for 360 seconds
+      poll: 0 # fire and forget
+      register: database_result
+      changed_when: false
+    - name: Check status of tasks
+      ansible.builtin.async_status:
+        jid={{ webapp_result.ansible_job_id }}
+      register: job_result
+      until: job_result.finished
+      retries: 30
+      changed_when: false
