@@ -1,0 +1,23 @@
+- name: Install a data base
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: installed
+  loop:
+    - mysql-server
+    - mysql-client
+- name: start mysql service
+  ansible.builtin.service:
+    name: mysql
+    state: started
+    enabled: true
+- name: create an application database
+  community.mysql.mysql_db:
+    name: '{{ db_name }}'
+    state: present
+- name: create database user
+  community.mysql.mysql_user:
+    name: '{{ db_user }}'
+    password: '{{ db_password }}'
+    state: present
+    priv: '*.*:ALL'
+    host: '%'

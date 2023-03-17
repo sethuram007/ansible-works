@@ -1,0 +1,7 @@
+- name: Configuring web cum database
+  hosts: db_web_servers
+  become: true
+  roles:
+    - python-deps
+    - mysql_db
+    - flask_web

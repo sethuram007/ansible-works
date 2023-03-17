@@ -1,0 +1,10 @@
+- name: Install required dependencies
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: installed
+  loop:
+    - python
+    - python-setuptools
+    - python-dev
+    - build-essentials
+    - python-pip
